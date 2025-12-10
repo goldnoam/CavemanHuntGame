@@ -23,10 +23,9 @@ const App: React.FC = () => {
     // Initial flavor text
     if (gameState === GameState.START) {
         setNarratorMessage({ text: "הרוחות איתך, אוג! הבא את הממותה!", type: 'info' });
-        // Use GenAI for variety on start if desired
+        // Use static narration for variety on start
         generateNarration("המשחק מתחיל, האדם הקדמון יוצא לדרך").then(text => {
-            // We can choose to overwrite or just log it, let's keep it simple for now and rely on predefined for instant feedback
-            // But let's show it if it arrives quickly
+            // Narration logic
         });
     }
   };
@@ -43,7 +42,7 @@ const App: React.FC = () => {
       <div className="relative z-10 w-full max-w-4xl">
         <header className="mb-4 flex justify-between items-center text-stone-400">
            <span className="text-xs uppercase tracking-widest">Prehistoric Engine v1.0</span>
-           <span className="text-xs uppercase tracking-widest">React + Gemini</span>
+           <span className="text-xs uppercase tracking-widest">React + Vite</span>
         </header>
 
         <div className="relative">
@@ -60,7 +59,7 @@ const App: React.FC = () => {
         </div>
 
         <footer className="mt-6 text-center text-stone-600 text-sm">
-           <p>נוצר באמצעות React, Tailwind ו-Google Gemini API</p>
+           <p>נוצר באמצעות React, Tailwind</p>
         </footer>
       </div>
     </div>
