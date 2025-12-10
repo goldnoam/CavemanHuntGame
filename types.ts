@@ -1,3 +1,4 @@
+
 export enum GameState {
   START = 'START',
   PLAYING = 'PLAYING',
@@ -5,8 +6,8 @@ export enum GameState {
   VICTORY = 'VICTORY'
 }
 
-export type EntityType = 'player' | 'mammoth' | 'trex' | 'tiger' | 'sabertooth' | 'rhino' | 'raptor' | 'club_hitbox' | 'powerup' | 'hazard' | 'artifact' | 'food';
-export type PowerUpType = 'speed' | 'strength';
+export type EntityType = 'player' | 'mammoth' | 'trex' | 'tiger' | 'sabertooth' | 'rhino' | 'raptor' | 'scorpion' | 'pterodactyl' | 'club_hitbox' | 'powerup' | 'hazard' | 'artifact' | 'food';
+export type PowerUpType = 'speed' | 'strength' | 'poison';
 
 export interface ActiveEffect {
   type: PowerUpType;

@@ -1,3 +1,4 @@
+
 export const GRAVITY = 0.6;
 export const FRICTION = 0.8;
 export const MOVE_SPEED = 5;
@@ -19,6 +20,8 @@ export const SPRITE_TIGER = "🐅";
 export const SPRITE_SABERTOOTH = "🐆";
 export const SPRITE_RHINO = "🦏";
 export const SPRITE_RAPTOR = "🦎";
+export const SPRITE_SCORPION = "🦂";
+export const SPRITE_PTERODACTYL = "🦅";
 export const SPRITE_CLUB = "🪵";
 export const SPRITE_BONE = "🦴";
 export const SPRITE_SHIELD = "🛡️";
@@ -30,6 +33,7 @@ export const SPRITE_POWERUP_SPEED = "⚡";
 export const SPRITE_POWERUP_STRENGTH = "💪";
 export const SPRITE_ARTIFACT = "🏺";
 export const SPRITE_FOOD = "🥩";
+export const SPRITE_POISON = "☠️";
 
 // Combat Constants
 export const PARRY_DURATION = 20; // Frames (approx 0.3s)
@@ -37,8 +41,8 @@ export const PARRY_COOLDOWN = 60; // Frames (approx 1s)
 export const STUN_DURATION = 120; // Frames (approx 2s)
 
 // Scoring
-export const SCORE_KILL_SMALL = 100; // Raptor, Tiger
-export const SCORE_KILL_MEDIUM = 200; // Sabertooth, Rhino
+export const SCORE_KILL_SMALL = 100; // Raptor, Tiger, Scorpion
+export const SCORE_KILL_MEDIUM = 200; // Sabertooth, Rhino, Pterodactyl
 export const SCORE_KILL_LARGE = 300; // T-Rex
 export const SCORE_ARTIFACT = 500;
 export const SCORE_FOOD = 50;

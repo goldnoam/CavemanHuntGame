@@ -1,10 +1,12 @@
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { GameState, Entity, Particle, NarratorMessage, PowerUpType } from '../types';
 import { 
   GRAVITY, FRICTION, MOVE_SPEED, JUMP_FORCE, FLOOR_Y, 
   CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT,
-  SPRITE_PLAYER, SPRITE_MAMMOTH, SPRITE_TREX, SPRITE_TIGER, SPRITE_SABERTOOTH, SPRITE_RHINO, SPRITE_RAPTOR, SPRITE_CLUB,
-  SPRITE_POWERUP_SPEED, SPRITE_POWERUP_STRENGTH, SPRITE_SHIELD, SPRITE_STUNNED, SPRITE_ROCK,
+  SPRITE_PLAYER, SPRITE_MAMMOTH, SPRITE_TREX, SPRITE_TIGER, SPRITE_SABERTOOTH, SPRITE_RHINO, SPRITE_RAPTOR, 
+  SPRITE_SCORPION, SPRITE_PTERODACTYL, SPRITE_CLUB,
+  SPRITE_POWERUP_SPEED, SPRITE_POWERUP_STRENGTH, SPRITE_SHIELD, SPRITE_STUNNED, SPRITE_ROCK, SPRITE_POISON,
   SPRITE_ARTIFACT, SPRITE_FOOD,
   PARRY_DURATION, PARRY_COOLDOWN, STUN_DURATION, ARENA_START_X,
   SCORE_KILL_SMALL, SCORE_KILL_MEDIUM, SCORE_KILL_LARGE, SCORE_ARTIFACT, SCORE_FOOD, SCORE_MAMMOTH
@@ -33,7 +35,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   // Mutable Game State
   const playerRef = useRef<Entity>({
     id: 'p1', x: 50, y: FLOOR_Y - PLAYER_HEIGHT, width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
-    vx: 0, vy: 0, type: 'player', hp: 3, maxHp: 3, facing: 1, sprite: SPRITE_PLAYER, 
+    vx: 0, vy: 0, type: 'player', hp: 5, maxHp: 5, facing: 1, sprite: SPRITE_PLAYER, 
     attackCooldown: 0, activeEffects: [], parryTimer: 0, parryCooldown: 0
   });
   
@@ -56,7 +58,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   }, [isMuted]);
 
   // Sound Engine
-  const playSound = useCallback((type: 'jump' | 'attack' | 'hit' | 'block' | 'powerup' | 'damage' | 'victory' | 'collect') => {
+  const playSound = useCallback((type: 'jump' | 'attack' | 'hit' | 'block' | 'powerup' | 'damage' | 'victory' | 'collect' | 'poison') => {
     if (isMutedRef.current) return;
 
     if (!audioCtxRef.current) {
@@ -108,6 +110,15 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         gain.gain.linearRampToValueAtTime(0, now + 0.3);
         osc.start(now);
         osc.stop(now + 0.3);
+        break;
+      case 'poison':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(300, now + 0.2);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
         break;
       case 'block':
         osc.type = 'sine';
@@ -164,9 +175,11 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
     // Increased enemy density initially with new types
     enemiesRef.current = [
       { id: 'rap1', x: 500, y: FLOOR_Y - 50, width: 50, height: 50, vx: 0, vy: 0, type: 'raptor', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_RAPTOR, stunTimer: 0 },
+      { id: 'sc1', x: 700, y: FLOOR_Y - 40, width: 60, height: 40, vx: 0, vy: 0, type: 'scorpion', hp: 2, maxHp: 2, facing: -1, sprite: SPRITE_SCORPION, stunTimer: 0 },
       { id: 'rh1', x: 900, y: FLOOR_Y - 70, width: 90, height: 60, vx: 0, vy: 0, type: 'rhino', hp: 3, maxHp: 3, facing: -1, sprite: SPRITE_RHINO, stunTimer: 0 },
       { id: 's1', x: 1300, y: FLOOR_Y - 80, width: 90, height: 80, vx: 0, vy: 0, type: 'sabertooth', hp: 2, maxHp: 2, facing: -1, sprite: SPRITE_SABERTOOTH, stunTimer: 0 },
-      { id: 'rap2', x: 1600, y: FLOOR_Y - 50, width: 50, height: 50, vx: 0, vy: 0, type: 'raptor', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_RAPTOR, stunTimer: 0 },
+      { id: 'pt1', x: 1500, y: FLOOR_Y - 250, width: 70, height: 50, vx: 0, vy: 0, type: 'pterodactyl', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_PTERODACTYL, stunTimer: 0 },
+      { id: 'rap2', x: 1700, y: FLOOR_Y - 50, width: 50, height: 50, vx: 0, vy: 0, type: 'raptor', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_RAPTOR, stunTimer: 0 },
       { id: 't1', x: 1900, y: FLOOR_Y - 70, width: 80, height: 70, vx: 0, vy: 0, type: 'tiger', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_TIGER, stunTimer: 0 },
       { id: 'rh2', x: 2300, y: FLOOR_Y - 70, width: 90, height: 60, vx: 0, vy: 0, type: 'rhino', hp: 3, maxHp: 3, facing: -1, sprite: SPRITE_RHINO, stunTimer: 0 },
       { id: 'r1', x: 2500, y: FLOOR_Y - 100, width: 100, height: 100, vx: 0, vy: 0, type: 'trex', hp: 2, maxHp: 2, facing: -1, sprite: SPRITE_TREX, stunTimer: 0 },
@@ -174,7 +187,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
     ];
 
     collectiblesRef.current = [
-      { id: 'pu1', x: 700, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'speed', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_SPEED },
+      { id: 'pu1', x: 750, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'speed', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_SPEED },
       { id: 'pu2', x: 2100, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'strength', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_STRENGTH },
       { id: 'art1', x: 1400, y: FLOOR_Y - 40, width: 40, height: 40, vx: 0, vy: 0, type: 'artifact', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_ARTIFACT },
     ];
@@ -278,7 +291,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
           
           if (enemy.hp <= 0) {
              let scoreAdd = SCORE_KILL_SMALL;
-             if (enemy.type === 'sabertooth' || enemy.type === 'rhino') scoreAdd = SCORE_KILL_MEDIUM;
+             if (enemy.type === 'sabertooth' || enemy.type === 'rhino' || enemy.type === 'pterodactyl') scoreAdd = SCORE_KILL_MEDIUM;
              if (enemy.type === 'trex') scoreAdd = SCORE_KILL_LARGE;
              if (enemy.type === 'mammoth') scoreAdd = SCORE_MAMMOTH;
              
@@ -372,21 +385,31 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             const id = `spawn_${Date.now()}_${Math.random()}`;
             
             // Distributed spawn
-            if (rand < 0.25) {
+            if (rand < 0.20) {
                  enemiesRef.current.push({ 
                      id, x: spawnX, y: FLOOR_Y - 70, width: 80, height: 70, vx: 0, vy: 0, 
                      type: 'tiger', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_TIGER, stunTimer: 0 
                  });
-            } else if (rand < 0.50) {
+            } else if (rand < 0.40) {
                  enemiesRef.current.push({ 
                      id, x: spawnX, y: FLOOR_Y - 80, width: 90, height: 80, vx: 0, vy: 0, 
                      type: 'sabertooth', hp: 2, maxHp: 2, facing: -1, sprite: SPRITE_SABERTOOTH, stunTimer: 0 
                  });
-            } else if (rand < 0.75) {
+            } else if (rand < 0.55) {
                 enemiesRef.current.push({
                     id, x: spawnX, y: FLOOR_Y - 70, width: 90, height: 60, vx: 0, vy: 0,
                     type: 'rhino', hp: 3, maxHp: 3, facing: -1, sprite: SPRITE_RHINO, stunTimer: 0
                 });
+            } else if (rand < 0.70) {
+                 enemiesRef.current.push({ 
+                     id, x: spawnX, y: FLOOR_Y - 40, width: 60, height: 40, vx: 0, vy: 0, 
+                     type: 'scorpion', hp: 2, maxHp: 2, facing: -1, sprite: SPRITE_SCORPION, stunTimer: 0 
+                 });
+            } else if (rand < 0.85) {
+                 enemiesRef.current.push({ 
+                     id, x: spawnX, y: FLOOR_Y - 200 - Math.random() * 100, width: 70, height: 50, vx: 0, vy: 0, 
+                     type: 'pterodactyl', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_PTERODACTYL, stunTimer: 0 
+                 });
             } else {
                  enemiesRef.current.push({ 
                      id, x: spawnX, y: FLOOR_Y - 50, width: 50, height: 50, vx: 0, vy: 0, 
@@ -459,7 +482,18 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
 
     // Active Effects Update
     if (player.activeEffects) {
-        player.activeEffects.forEach(e => e.timeLeft--);
+        player.activeEffects.forEach(e => {
+            e.timeLeft--;
+            // Poison Damage Tick
+            if (e.type === 'poison') {
+                if (e.timeLeft % 60 === 0) { // Damage every second
+                    player.hp -= 1;
+                    playSound('poison');
+                    spawnParticles(player.x + player.width/2, player.y, '#8800FF', 8);
+                    if (player.hp <= 0) triggerGameOver();
+                }
+            }
+        });
         player.activeEffects = player.activeEffects.filter(e => e.timeLeft > 0);
     }
 
@@ -508,82 +542,110 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
           return; 
       }
 
-      // Simple AI
       const dist = player.x - enemy.x;
       const range = 600; 
 
-      // Physics
-      enemy.vy += GRAVITY;
-      enemy.y += enemy.vy;
-      
-      // Enemy Landing Dust
-      if (enemy.y + enemy.height > FLOOR_Y) {
-        if (enemy.vy > 2) {
-            spawnParticles(enemy.x + enemy.width/2, FLOOR_Y, '#777777', 5);
-        }
-        enemy.y = FLOOR_Y - enemy.height;
-        enemy.vy = 0;
-      }
-      
-      enemy.vx *= FRICTION;
-      enemy.x += enemy.vx;
+      if (enemy.type === 'pterodactyl') {
+          // Pterodactyl AI (Flight)
+          if (Math.abs(dist) < range) {
+              enemy.facing = dist > 0 ? 1 : -1;
+              
+              // Fly towards player X
+              enemy.vx += (dist > 0 ? 0.2 : -0.2);
+              if (enemy.vx > 6) enemy.vx = 6;
+              if (enemy.vx < -6) enemy.vx = -6;
 
-      // Behavior
-      if (Math.abs(dist) < range) {
-        
-        if (enemy.type === 'rhino') {
-             // Rhino Charge Logic
-             const isFacingPlayer = (dist > 0 && enemy.facing === 1) || (dist < 0 && enemy.facing === -1);
-             if (Math.abs(dist) < 400 && isFacingPlayer) {
-                 // Charge!
-                 const chargeSpeed = 0.5;
-                 enemy.vx += (dist > 0 ? 1 : -1) * chargeSpeed;
-                 if (Math.abs(enemy.vx) > 10) enemy.vx = (dist > 0 ? 1 : -1) * 10;
-             } else {
-                 // Patrol Slow
-                 enemy.vx = enemy.facing * 1.5;
-                 // Turn occasionally
-                 if (Math.random() < 0.01) enemy.facing *= -1;
-             }
+              // Swoop logic
+              const heightDiff = enemy.y - player.y;
+              if (Math.abs(dist) < 200 && heightDiff < 200) {
+                  // Swoop down
+                  enemy.vy += 0.4; 
+              } else if (enemy.y > FLOOR_Y - 150) {
+                  // Pull up to avoid floor
+                  enemy.vy -= 0.5;
+              } else {
+                  // Cruise altitude
+                  enemy.vy *= 0.95;
+              }
+              
+              enemy.x += enemy.vx;
+              enemy.y += enemy.vy;
 
-        } else if (enemy.type === 'raptor') {
-            // Raptor Jump Logic
-            enemy.facing = dist > 0 ? 1 : -1;
-            enemy.vx = enemy.facing * 5; // Fast movement
+              // Floor prevention
+              if (enemy.y + enemy.height > FLOOR_Y) {
+                  enemy.y = FLOOR_Y - enemy.height;
+                  enemy.vy = -5; // Bounce up
+              }
+          }
+      } else {
+          // Ground Enemies AI
+          enemy.vy += GRAVITY;
+          enemy.y += enemy.vy;
+          
+          if (enemy.y + enemy.height > FLOOR_Y) {
+            if (enemy.vy > 2) {
+                spawnParticles(enemy.x + enemy.width/2, FLOOR_Y, '#777777', 5);
+            }
+            enemy.y = FLOOR_Y - enemy.height;
+            enemy.vy = 0;
+          }
+          
+          enemy.vx *= FRICTION;
+          enemy.x += enemy.vx;
+
+          if (Math.abs(dist) < range) {
             
-            // Jump if close
-            if (Math.abs(dist) < 150 && enemy.y + enemy.height >= FLOOR_Y - 1) {
-                 if (Math.random() < 0.05) {
-                     enemy.vy = -12;
+            if (enemy.type === 'rhino') {
+                 const isFacingPlayer = (dist > 0 && enemy.facing === 1) || (dist < 0 && enemy.facing === -1);
+                 if (Math.abs(dist) < 400 && isFacingPlayer) {
+                     const chargeSpeed = 0.5;
+                     enemy.vx += (dist > 0 ? 1 : -1) * chargeSpeed;
+                     if (Math.abs(enemy.vx) > 10) enemy.vx = (dist > 0 ? 1 : -1) * 10;
+                 } else {
+                     enemy.vx = enemy.facing * 1.5;
+                     if (Math.random() < 0.01) enemy.facing *= -1;
                  }
-            }
 
-        } else if (enemy.type === 'sabertooth') {
-            const speed = 2.5;
-            if (dist > 0) enemy.vx += 0.4;
-            else enemy.vx -= 0.4;
-            if (enemy.vx > 7) enemy.vx = 7;
-            if (enemy.vx < -7) enemy.vx = -7;
-            enemy.facing = dist > 0 ? 1 : -1;
-
-            if (Math.abs(dist) < 200 && Math.abs(dist) > 50 && enemy.y + enemy.height >= FLOOR_Y - 1) {
-                if (Math.random() < 0.03) {
-                     enemy.vy = -12; 
-                     enemy.vx = (dist > 0 ? 1 : -1) * 10;
-                     spawnParticles(enemy.x + enemy.width/2, enemy.y + enemy.height, '#e0e0e0', 5);
+            } else if (enemy.type === 'raptor') {
+                enemy.facing = dist > 0 ? 1 : -1;
+                enemy.vx = enemy.facing * 5; 
+                if (Math.abs(dist) < 150 && enemy.y + enemy.height >= FLOOR_Y - 1) {
+                     if (Math.random() < 0.05) {
+                         enemy.vy = -12;
+                     }
                 }
-            }
 
-        } else if (enemy.type === 'mammoth') {
-            if (Math.abs(dist) < 200 && Math.random() < 0.02) {
-                enemy.vx = (dist > 0 ? 1 : -1) * 8;
+            } else if (enemy.type === 'sabertooth') {
+                const speed = 2.5;
+                if (dist > 0) enemy.vx += 0.4;
+                else enemy.vx -= 0.4;
+                if (enemy.vx > 7) enemy.vx = 7;
+                if (enemy.vx < -7) enemy.vx = -7;
+                enemy.facing = dist > 0 ? 1 : -1;
+
+                if (Math.abs(dist) < 200 && Math.abs(dist) > 50 && enemy.y + enemy.height >= FLOOR_Y - 1) {
+                    if (Math.random() < 0.03) {
+                         enemy.vy = -12; 
+                         enemy.vx = (dist > 0 ? 1 : -1) * 10;
+                         spawnParticles(enemy.x + enemy.width/2, enemy.y + enemy.height, '#e0e0e0', 5);
+                    }
+                }
+            } else if (enemy.type === 'scorpion') {
+                enemy.vx = enemy.facing * 2;
+                if (Math.random() < 0.02) enemy.facing *= -1;
+                // Turn towards player if very close
+                if (Math.abs(dist) < 100) enemy.facing = dist > 0 ? 1 : -1;
+            } else if (enemy.type === 'mammoth') {
+                if (Math.abs(dist) < 200 && Math.random() < 0.02) {
+                    enemy.vx = (dist > 0 ? 1 : -1) * 8;
+                }
+                enemy.facing = dist > 0 ? 1 : -1;
+            } else {
+                if (dist > 0) enemy.vx += 0.2;
+                else enemy.vx -= 0.2;
+                enemy.facing = dist > 0 ? 1 : -1;
             }
-            enemy.facing = dist > 0 ? 1 : -1;
-        } else {
-            if (dist > 0) enemy.vx += 0.2;
-            else enemy.vx -= 0.2;
-            enemy.facing = dist > 0 ? 1 : -1;
-        }
+          }
       }
 
       // Player collision damage check
@@ -598,15 +660,14 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             player.parryTimer = 0;
             
             playSound('block');
-            setScore(s => s + 50); // Small bonus for parry
+            setScore(s => s + 50); 
             
             // FX
-            screenShakeRef.current = 15; // Increased shake
-            parryFlashRef.current = 10; // Increased flash
+            screenShakeRef.current = 15;
+            parryFlashRef.current = 10;
             spawnParticles(player.x + player.width/2, player.y + player.height/2, '#FFFFFF', 40); 
             spawnParticles(enemy.x + enemy.width/2, enemy.y, '#FFFF00', 15);
             
-            // Narration feedback
             setNarratorMessage({ 
                 text: ["חסימה!", "בזמן!", "החיה מסוחררת!", "חסום!"][Math.floor(Math.random()*4)], 
                 type: 'parry' 
@@ -618,8 +679,18 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             player.vy = -5;
             player.hp -= 1;
             playSound('damage');
-            screenShakeRef.current = 10; // Increased shake
+            screenShakeRef.current = 10;
             spawnParticles(player.x, player.y, '#ffaaaa', 5);
+
+            // Special Attack: Scorpion Poison
+            if (enemy.type === 'scorpion' && player.hp > 0) {
+                 if (!player.activeEffects?.some(e => e.type === 'poison')) {
+                     if (!player.activeEffects) player.activeEffects = [];
+                     player.activeEffects.push({ type: 'poison', timeLeft: 300 }); // 5 seconds
+                     setNarratorMessage({ text: "הרעל מתפשט!", type: 'danger' });
+                 }
+            }
+
             if (player.hp <= 0) {
                 triggerGameOver();
             }
@@ -727,6 +798,10 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         }
         if (e.type === 'player' && e.activeEffects?.some(ef => ef.type === 'speed')) {
              ctx.shadowColor = 'yellow';
+             ctx.shadowBlur = 20;
+        }
+        if (e.type === 'player' && e.activeEffects?.some(ef => ef.type === 'poison')) {
+             ctx.shadowColor = '#8800FF';
              ctx.shadowBlur = 20;
         }
 
@@ -883,6 +958,11 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             {playerRef.current.activeEffects?.some(e => e.type === 'strength') && (
                 <div className="bg-red-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">
                     {SPRITE_POWERUP_STRENGTH} POWER
+                </div>
+            )}
+            {playerRef.current.activeEffects?.some(e => e.type === 'poison') && (
+                <div className="bg-purple-600 text-white px-2 py-1 rounded-full font-bold animate-pulse border-2 border-purple-300">
+                    {SPRITE_POISON} POISON
                 </div>
             )}
         </div>
