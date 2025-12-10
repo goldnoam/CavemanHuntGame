@@ -5,7 +5,7 @@ export enum GameState {
   VICTORY = 'VICTORY'
 }
 
-export type EntityType = 'player' | 'mammoth' | 'trex' | 'tiger' | 'sabertooth' | 'rhino' | 'raptor' | 'club_hitbox' | 'powerup' | 'hazard';
+export type EntityType = 'player' | 'mammoth' | 'trex' | 'tiger' | 'sabertooth' | 'rhino' | 'raptor' | 'club_hitbox' | 'powerup' | 'hazard' | 'artifact' | 'food';
 export type PowerUpType = 'speed' | 'strength';
 
 export interface ActiveEffect {
@@ -51,5 +51,5 @@ export interface Particle {
 
 export interface NarratorMessage {
   text: string;
-  type: 'info' | 'danger' | 'victory' | 'defeat' | 'powerup' | 'parry';
+  type: 'info' | 'danger' | 'victory' | 'defeat' | 'powerup' | 'parry' | 'score';
 }

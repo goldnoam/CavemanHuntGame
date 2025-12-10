@@ -5,7 +5,9 @@ import {
   CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT,
   SPRITE_PLAYER, SPRITE_MAMMOTH, SPRITE_TREX, SPRITE_TIGER, SPRITE_SABERTOOTH, SPRITE_RHINO, SPRITE_RAPTOR, SPRITE_CLUB,
   SPRITE_POWERUP_SPEED, SPRITE_POWERUP_STRENGTH, SPRITE_SHIELD, SPRITE_STUNNED, SPRITE_ROCK,
-  PARRY_DURATION, PARRY_COOLDOWN, STUN_DURATION, ARENA_START_X
+  SPRITE_ARTIFACT, SPRITE_FOOD,
+  PARRY_DURATION, PARRY_COOLDOWN, STUN_DURATION, ARENA_START_X,
+  SCORE_KILL_SMALL, SCORE_KILL_MEDIUM, SCORE_KILL_LARGE, SCORE_ARTIFACT, SCORE_FOOD, SCORE_MAMMOTH
 } from '../constants';
 import { generateNarration } from '../services/narratorService';
 
@@ -23,6 +25,10 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   const audioCtxRef = useRef<AudioContext | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false); // Ref for sync access in game loop
+  
+  // Game Logic State
+  const [score, setScore] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Mutable Game State
   const playerRef = useRef<Entity>({
@@ -33,7 +39,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   
   const enemiesRef = useRef<Entity[]>([]);
   const hazardsRef = useRef<Entity[]>([]);
-  const powerUpsRef = useRef<Entity[]>([]);
+  const collectiblesRef = useRef<Entity[]>([]); // Merged powerups and new items
   const particlesRef = useRef<Particle[]>([]);
   const cameraXRef = useRef(0);
   const spawnTimerRef = useRef(0);
@@ -50,7 +56,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   }, [isMuted]);
 
   // Sound Engine
-  const playSound = useCallback((type: 'jump' | 'attack' | 'hit' | 'block' | 'powerup' | 'damage' | 'victory') => {
+  const playSound = useCallback((type: 'jump' | 'attack' | 'hit' | 'block' | 'powerup' | 'damage' | 'victory' | 'collect') => {
     if (isMutedRef.current) return;
 
     if (!audioCtxRef.current) {
@@ -123,6 +129,15 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         osc.start(now);
         osc.stop(now + 0.4);
         break;
+      case 'collect':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.linearRampToValueAtTime(1800, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+        break;
       case 'victory':
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(440, now);
@@ -138,6 +153,8 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
   }, []);
 
   const initGame = useCallback(() => {
+    setScore(0);
+    setIsPaused(false);
     playerRef.current = {
       id: 'p1', x: 50, y: FLOOR_Y - PLAYER_HEIGHT, width: PLAYER_WIDTH, height: PLAYER_HEIGHT,
       vx: 0, vy: 0, type: 'player', hp: 5, maxHp: 5, facing: 1, sprite: SPRITE_PLAYER, 
@@ -156,9 +173,10 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
       { id: 'm1', x: 3000, y: FLOOR_Y - 120, width: 150, height: 120, vx: 0, vy: 0, type: 'mammoth', hp: 3, maxHp: 3, facing: -1, sprite: SPRITE_MAMMOTH, stunTimer: 0 }
     ];
 
-    powerUpsRef.current = [
+    collectiblesRef.current = [
       { id: 'pu1', x: 700, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'speed', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_SPEED },
-      { id: 'pu2', x: 2100, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'strength', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_STRENGTH }
+      { id: 'pu2', x: 2100, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'strength', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_STRENGTH },
+      { id: 'art1', x: 1400, y: FLOOR_Y - 40, width: 40, height: 40, vx: 0, vy: 0, type: 'artifact', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_ARTIFACT },
     ];
     
     hazardsRef.current = [];
@@ -168,10 +186,12 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
     hazardTimerRef.current = 0;
     screenShakeRef.current = 0;
     parryFlashRef.current = 0;
+    keys.current = {}; // Reset keys on game start
   }, []);
 
   useEffect(() => {
-    if (gameState === GameState.START) {
+    // Reset game when switching to PLAYING (Start or Restart)
+    if (gameState === GameState.START || gameState === GameState.PLAYING) {
       initGame();
     }
   }, [gameState, initGame]);
@@ -256,11 +276,20 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
           playSound('hit');
           spawnParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#ff0000', 10);
           
-          if (enemy.hp <= 0 && enemy.type === 'mammoth') {
-             playSound('victory');
-             triggerVictory();
-          } else if (enemy.hp <= 0) {
-             spawnParticles(enemy.x, enemy.y, '#555', 20);
+          if (enemy.hp <= 0) {
+             let scoreAdd = SCORE_KILL_SMALL;
+             if (enemy.type === 'sabertooth' || enemy.type === 'rhino') scoreAdd = SCORE_KILL_MEDIUM;
+             if (enemy.type === 'trex') scoreAdd = SCORE_KILL_LARGE;
+             if (enemy.type === 'mammoth') scoreAdd = SCORE_MAMMOTH;
+             
+             setScore(s => s + scoreAdd);
+             
+             if (enemy.type === 'mammoth') {
+                playSound('victory');
+                triggerVictory();
+             } else {
+                spawnParticles(enemy.x, enemy.y, '#555', 20);
+             }
           } else {
              // If enemy survives, briefly interrupt them if they aren't boss
              if (enemy.type !== 'mammoth') enemy.vx += player.facing * 5;
@@ -282,31 +311,48 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
     setNarratorMessage({ text, type: 'defeat' });
   };
 
-  const collectPowerUp = (powerUp: Entity) => {
+  const collectItem = (item: Entity) => {
     const player = playerRef.current;
-    const duration = 600; // 10 seconds at 60fps
     
-    // Add effect
-    if (!player.activeEffects) player.activeEffects = [];
-    
-    // Remove existing of same type to refresh
-    player.activeEffects = player.activeEffects.filter(e => e.type !== powerUp.powerUpType);
-    player.activeEffects.push({ type: powerUp.powerUpType!, timeLeft: duration });
-
-    playSound('powerup');
-    // Visuals
-    spawnParticles(player.x, player.y, powerUp.powerUpType === 'speed' ? '#FFFF00' : '#FF5555', 20);
-    
-    // Narration
-    if (powerUp.powerUpType === 'speed') {
-        setNarratorMessage({ text: "כוח הברק! רץ מהר!", type: 'powerup' });
-    } else {
-        setNarratorMessage({ text: "בשר כוח! נבוט חזק!", type: 'powerup' });
+    if (item.type === 'powerup') {
+        const duration = 600; // 10 seconds at 60fps
+        // Add effect
+        if (!player.activeEffects) player.activeEffects = [];
+        // Remove existing of same type to refresh
+        player.activeEffects = player.activeEffects.filter(e => e.type !== item.powerUpType);
+        player.activeEffects.push({ type: item.powerUpType!, timeLeft: duration });
+        
+        playSound('powerup');
+        spawnParticles(player.x, player.y, item.powerUpType === 'speed' ? '#FFFF00' : '#FF5555', 20);
+        
+        if (item.powerUpType === 'speed') {
+            setNarratorMessage({ text: "כוח הברק! רץ מהר!", type: 'powerup' });
+        } else {
+            setNarratorMessage({ text: "בשר כוח! נבוט חזק!", type: 'powerup' });
+        }
+    } else if (item.type === 'artifact') {
+        playSound('collect');
+        setScore(s => s + SCORE_ARTIFACT);
+        spawnParticles(player.x, player.y, '#00FFFF', 20);
+        setNarratorMessage({ text: "אוצר קדום! כבוד לשבט!", type: 'score' });
+    } else if (item.type === 'food') {
+        playSound('collect');
+        setScore(s => s + SCORE_FOOD);
+        player.hp = Math.min(player.hp + 1, player.maxHp);
+        spawnParticles(player.x, player.y, '#00FF00', 15);
+        setNarratorMessage({ text: "אוכל טעים! כוח חוזר!", type: 'powerup' });
     }
   };
 
   const update = () => {
+    // Loop stop conditions
     if (gameState !== GameState.PLAYING) return;
+    if (isPaused) {
+        // Even if paused, we draw to keep the screen visible
+        draw(); 
+        requestRef.current = requestAnimationFrame(update);
+        return;
+    }
 
     const player = playerRef.current;
     
@@ -346,6 +392,21 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
                      id, x: spawnX, y: FLOOR_Y - 50, width: 50, height: 50, vx: 0, vy: 0, 
                      type: 'raptor', hp: 1, maxHp: 1, facing: -1, sprite: SPRITE_RAPTOR, stunTimer: 0 
                  });
+            }
+
+            // Chance to spawn Collectibles
+            if (Math.random() < 0.3) {
+                 const itemRand = Math.random();
+                 const itemId = `item_${Date.now()}`;
+                 if (itemRand < 0.4) {
+                    collectiblesRef.current.push({ id: itemId, x: spawnX + 50, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'speed', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_SPEED });
+                 } else if (itemRand < 0.7) {
+                    collectiblesRef.current.push({ id: itemId, x: spawnX + 80, y: FLOOR_Y - 50, width: 40, height: 40, vx: 0, vy: 0, type: 'powerup', powerUpType: 'strength', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_POWERUP_STRENGTH });
+                 } else if (itemRand < 0.9) {
+                    collectiblesRef.current.push({ id: itemId, x: spawnX + 100, y: FLOOR_Y - 40, width: 40, height: 40, vx: 0, vy: 0, type: 'food', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_FOOD });
+                 } else {
+                    collectiblesRef.current.push({ id: itemId, x: spawnX + 100, y: FLOOR_Y - 40, width: 40, height: 40, vx: 0, vy: 0, type: 'artifact', hp: 0, maxHp: 0, facing: 1, sprite: SPRITE_ARTIFACT });
+                 }
             }
         }
     }
@@ -415,10 +476,12 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             if (player.isBlocking) {
                 playSound('block');
                 spawnParticles(player.x + player.width/2, player.y, '#FFFFFF', 10);
+                parryFlashRef.current = 5;
             } else {
                 player.hp -= 1;
                 playSound('damage');
                 player.vx = (Math.random() - 0.5) * 20;
+                screenShakeRef.current = 10;
                 spawnParticles(player.x, player.y, '#ffaaaa', 10);
                 if (player.hp <= 0) triggerGameOver();
             }
@@ -433,6 +496,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
       // Manage Stun
       if (enemy.stunTimer && enemy.stunTimer > 0) {
           enemy.stunTimer--;
+          // Apply heavy gravity/friction while stunned
           enemy.vy += GRAVITY;
           enemy.y += enemy.vy;
           if (enemy.y + enemy.height > FLOOR_Y) {
@@ -451,10 +515,16 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
       // Physics
       enemy.vy += GRAVITY;
       enemy.y += enemy.vy;
+      
+      // Enemy Landing Dust
       if (enemy.y + enemy.height > FLOOR_Y) {
+        if (enemy.vy > 2) {
+            spawnParticles(enemy.x + enemy.width/2, FLOOR_Y, '#777777', 5);
+        }
         enemy.y = FLOOR_Y - enemy.height;
         enemy.vy = 0;
       }
+      
       enemy.vx *= FRICTION;
       enemy.x += enemy.vx;
 
@@ -528,10 +598,11 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             player.parryTimer = 0;
             
             playSound('block');
+            setScore(s => s + 50); // Small bonus for parry
             
             // FX
-            screenShakeRef.current = 10;
-            parryFlashRef.current = 5;
+            screenShakeRef.current = 15; // Increased shake
+            parryFlashRef.current = 10; // Increased flash
             spawnParticles(player.x + player.width/2, player.y + player.height/2, '#FFFFFF', 40); 
             spawnParticles(enemy.x + enemy.width/2, enemy.y, '#FFFF00', 15);
             
@@ -547,7 +618,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
             player.vy = -5;
             player.hp -= 1;
             playSound('damage');
-            screenShakeRef.current = 5;
+            screenShakeRef.current = 10; // Increased shake
             spawnParticles(player.x, player.y, '#ffaaaa', 5);
             if (player.hp <= 0) {
                 triggerGameOver();
@@ -556,10 +627,10 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
       }
     });
 
-    // Power Ups Logic
-    powerUpsRef.current = powerUpsRef.current.filter(p => {
+    // Collectibles Logic
+    collectiblesRef.current = collectiblesRef.current.filter(p => {
         if (checkCollision(player, p)) {
-            collectPowerUp(p);
+            collectItem(p);
             return false;
         }
         return true;
@@ -662,7 +733,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         ctx.scale(e.facing, 1);
         
         let yOffset = 0;
-        if (e.type === 'powerup') {
+        if (e.type === 'powerup' || e.type === 'artifact' || e.type === 'food') {
             yOffset = Math.sin(Date.now() / 200) * 5;
         }
 
@@ -691,7 +762,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         ctx.restore();
 
         // Health Bar Logic
-        if (e.type !== 'powerup' && e.type !== 'hazard') {
+        if (e.type !== 'powerup' && e.type !== 'artifact' && e.type !== 'food' && e.type !== 'hazard') {
             const barWidth = e.width;
             const barHeight = 8;
             const barX = e.x;
@@ -716,7 +787,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         }
     };
 
-    powerUpsRef.current.forEach(drawEntity);
+    collectiblesRef.current.forEach(drawEntity);
     hazardsRef.current.forEach(drawEntity);
     enemiesRef.current.forEach(drawEntity);
     drawEntity(playerRef.current);
@@ -733,7 +804,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
 
     // Parry Flash Overlay
     if (parryFlashRef.current > 0) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${parryFlashRef.current / 5})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${parryFlashRef.current / 10})`; // Adjusted opacity
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         ctx.fillStyle = 'yellow';
         ctx.font = 'bold 80px sans-serif';
@@ -751,6 +822,9 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.code === 'KeyP') {
+            setIsPaused(prev => !prev);
+        }
         if(e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'ArrowUp') e.preventDefault(); 
         keys.current[e.key] = true;
         keys.current[e.code] = true; 
@@ -774,7 +848,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         window.removeEventListener('keyup', handleKeyUp);
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [gameState, update]); 
+  }, [gameState, isPaused, update]); // Added isPaused to dependency to restart loop
 
   return (
     <div className="relative border-4 border-stone-700 rounded-lg overflow-hidden shadow-2xl bg-black">
@@ -787,6 +861,12 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
       
       {/* HUD - Health & Active Effects */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none z-30">
+        
+        {/* Score Display */}
+        <div className="text-white font-stone text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+            SCORE: {score.toString().padStart(6, '0')}
+        </div>
+
         <div className="flex gap-2">
             {Array.from({length: playerRef.current.maxHp}).map((_, i) => (
                 <span key={i} className={`text-3xl ${i < playerRef.current.hp ? 'opacity-100' : 'opacity-20 grayscale'}`}>❤️</span>
@@ -808,19 +888,43 @@ const GameEngine: React.FC<GameEngineProps> = ({ gameState, setGameState, setNar
         </div>
       </div>
 
+      {/* Pause Button */}
+      <div className="absolute top-4 right-16 z-30">
+           <button
+              onClick={() => setIsPaused(!isPaused)}
+              className="bg-stone-800/80 hover:bg-stone-700 text-white p-2 rounded-full border-2 border-stone-500 transition-colors w-10 h-10 flex items-center justify-center font-bold"
+              title="Pause Game (P)"
+          >
+              {isPaused ? "▶" : "⏸"}
+          </button>
+      </div>
+
       {/* Mute Button */}
       <div className="absolute top-4 right-4 z-30">
           <button
               onClick={() => setIsMuted(!isMuted)}
-              className="bg-stone-800/80 hover:bg-stone-700 text-white p-2 rounded-full border-2 border-stone-500 transition-colors"
+              className="bg-stone-800/80 hover:bg-stone-700 text-white p-2 rounded-full border-2 border-stone-500 transition-colors w-10 h-10 flex items-center justify-center"
               title={isMuted ? "Unmute" : "Mute"}
           >
               {isMuted ? "🔇" : "🔊"}
           </button>
       </div>
       
+      {/* Pause Overlay */}
+      {isPaused && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 flex flex-col items-center justify-center">
+            <h2 className="text-6xl font-stone text-white mb-8 drop-shadow-lg">PAUSED</h2>
+            <button 
+                onClick={() => setIsPaused(false)}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-stone text-2xl py-3 px-8 rounded-full shadow-lg border-2 border-amber-400"
+            >
+                RESUME
+            </button>
+        </div>
+      )}
+
       {/* Mobile Controls Overlay */}
-      {gameState === GameState.PLAYING && (
+      {gameState === GameState.PLAYING && !isPaused && (
           <div className="absolute inset-0 pointer-events-none flex flex-col justify-end pb-2 px-2 z-20">
               <div className="flex justify-between w-full pointer-events-auto opacity-70">
                   {/* Left Hand: Movement */}

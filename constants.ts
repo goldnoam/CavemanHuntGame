@@ -25,11 +25,21 @@ export const SPRITE_SHIELD = "🛡️";
 export const SPRITE_STUNNED = "💫";
 export const SPRITE_ROCK = "🪨";
 
-// Power-ups
+// Collectibles & Power-ups
 export const SPRITE_POWERUP_SPEED = "⚡";
-export const SPRITE_POWERUP_STRENGTH = "🍖";
+export const SPRITE_POWERUP_STRENGTH = "💪";
+export const SPRITE_ARTIFACT = "🏺";
+export const SPRITE_FOOD = "🥩";
 
 // Combat Constants
 export const PARRY_DURATION = 20; // Frames (approx 0.3s)
 export const PARRY_COOLDOWN = 60; // Frames (approx 1s)
 export const STUN_DURATION = 120; // Frames (approx 2s)
+
+// Scoring
+export const SCORE_KILL_SMALL = 100; // Raptor, Tiger
+export const SCORE_KILL_MEDIUM = 200; // Sabertooth, Rhino
+export const SCORE_KILL_LARGE = 300; // T-Rex
+export const SCORE_ARTIFACT = 500;
+export const SCORE_FOOD = 50;
+export const SCORE_MAMMOTH = 5000;
