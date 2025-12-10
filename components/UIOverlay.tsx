@@ -1,9 +1,10 @@
+
 import React from 'react';
-import { GameState, NarratorMessage } from '../types';
+import { GameState, GameMode, NarratorMessage } from '../types';
 
 interface UIOverlayProps {
   gameState: GameState;
-  onStart: () => void;
+  onStart: (mode: GameMode) => void;
   narratorMessage: NarratorMessage | null;
 }
 
@@ -75,18 +76,29 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ gameState, onStart, narratorMessa
                 </div>
                 )}
 
-                <button 
-                onClick={onStart}
-                className={`
-                    font-stone rounded-full transform transition-all shadow-xl active:scale-95 w-full md:w-auto
-                    ${gameState === GameState.GAME_OVER 
-                        ? 'bg-red-600 hover:bg-red-500 text-white ring-4 ring-red-900 text-5xl py-8 px-20 animate-bounce font-bold tracking-wider' 
-                        : 'bg-amber-600 hover:bg-amber-500 text-white ring-4 ring-amber-800 text-3xl py-4 px-16 hover:scale-105'
-                    }
-                `}
-                >
-                {gameState === GameState.START ? "התחל ציד" : "שחק שוב"}
-                </button>
+                <div className="flex flex-col gap-4 justify-center items-center">
+                    <button 
+                        onClick={() => onStart(GameMode.STORY)}
+                        className={`
+                            font-stone rounded-full transform transition-all shadow-xl active:scale-95 w-full md:w-auto
+                            ${gameState === GameState.GAME_OVER 
+                                ? 'bg-red-600 hover:bg-red-500 text-white ring-4 ring-red-900 text-5xl py-8 px-20 animate-bounce font-bold tracking-wider' 
+                                : 'bg-amber-600 hover:bg-amber-500 text-white ring-4 ring-amber-800 text-3xl py-4 px-16 hover:scale-105'
+                            }
+                        `}
+                    >
+                        {gameState === GameState.START ? "התחל ציד (סיפור)" : "נסה שוב"}
+                    </button>
+
+                    {gameState === GameState.START && (
+                        <button 
+                            onClick={() => onStart(GameMode.BOSS_RUSH)}
+                            className="bg-purple-700 hover:bg-purple-600 text-white ring-4 ring-purple-900 font-stone text-2xl py-3 px-12 rounded-full transform transition-all shadow-xl hover:scale-105 active:scale-95"
+                        >
+                            🥊 BOSS RUSH 🥊
+                        </button>
+                    )}
+                </div>
             </div>
           </div>
         </div>

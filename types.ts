@@ -6,6 +6,11 @@ export enum GameState {
   VICTORY = 'VICTORY'
 }
 
+export enum GameMode {
+  STORY = 'STORY',
+  BOSS_RUSH = 'BOSS_RUSH'
+}
+
 export type EntityType = 'player' | 'mammoth' | 'trex' | 'tiger' | 'sabertooth' | 'rhino' | 'raptor' | 'scorpion' | 'pterodactyl' | 'club_hitbox' | 'powerup' | 'hazard' | 'artifact' | 'food';
 export type PowerUpType = 'speed' | 'strength' | 'poison';
 

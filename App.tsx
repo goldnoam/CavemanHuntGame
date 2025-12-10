@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import GameEngine from './components/GameEngine';
 import UIOverlay from './components/UIOverlay';
-import { GameState, NarratorMessage } from './types';
+import { GameState, GameMode, NarratorMessage } from './types';
 import { generateNarration } from './services/narratorService';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.START);
+  const [gameMode, setGameMode] = useState<GameMode>(GameMode.STORY);
   const [narratorMessage, setNarratorMessage] = useState<NarratorMessage | null>(null);
 
   // Clear narrator message after a few seconds
@@ -18,13 +20,19 @@ const App: React.FC = () => {
     }
   }, [narratorMessage]);
 
-  const handleStart = async () => {
+  const handleStart = async (mode: GameMode) => {
+    setGameMode(mode);
     setGameState(GameState.PLAYING);
     // Initial flavor text
-    if (gameState === GameState.START) {
-        setNarratorMessage({ text: "הרוחות איתך, אוג! הבא את הממותה!", type: 'info' });
+    if (gameState === GameState.START || gameState === GameState.GAME_OVER || gameState === GameState.VICTORY) {
+        const introText = mode === GameMode.BOSS_RUSH 
+            ? "זירת המוות! הילחם בכל הבוסים!" 
+            : "הרוחות איתך, אוג! הבא את הממותה!";
+        
+        setNarratorMessage({ text: introText, type: 'info' });
+        
         // Use static narration for variety on start
-        generateNarration("המשחק מתחיל, האדם הקדמון יוצא לדרך").then(text => {
+        generateNarration(mode === GameMode.BOSS_RUSH ? "קרב הבוסים מתחיל" : "המשחק מתחיל, האדם הקדמון יוצא לדרך").then(text => {
             // Narration logic
         });
     }
@@ -48,6 +56,7 @@ const App: React.FC = () => {
         <div className="relative">
             <GameEngine 
                 gameState={gameState} 
+                gameMode={gameMode}
                 setGameState={setGameState}
                 setNarratorMessage={setNarratorMessage}
             />
